@@ -88,7 +88,7 @@ class VPGBuffer:
 def vpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0, 
         steps_per_epoch=4000, epochs=50, gamma=0.99, pi_lr=3e-4,
         vf_lr=1e-3, train_v_iters=80, lam=0.97, max_ep_len=1000,
-        logger_kwargs=dict(), save_freq=10):
+        logger_kwargs=dict(), save_freq=10, verbose=False):
     """
     Vanilla Policy Gradient 
 
@@ -289,7 +289,7 @@ def vpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
             epoch_ended = t==local_steps_per_epoch-1
 
             if terminal or epoch_ended:
-                if epoch_ended and not(terminal):
+                if epoch_ended and not(terminal) and verbose:
                     print('Warning: trajectory cut off by epoch at %d steps.'%ep_len, flush=True)
                 # if trajectory didn't reach terminal state, bootstrap value target
                 if timeout or epoch_ended:
@@ -310,20 +310,21 @@ def vpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
         # Perform VPG update!
         update()
 
-        # Log info about epoch
-        logger.log_tabular('Epoch', epoch)
-        logger.log_tabular('EpRet', with_min_and_max=True)
-        logger.log_tabular('EpLen', average_only=True)
-        logger.log_tabular('VVals', with_min_and_max=True)
-        logger.log_tabular('TotalEnvInteracts', (epoch+1)*steps_per_epoch)
-        logger.log_tabular('LossPi', average_only=True)
-        logger.log_tabular('LossV', average_only=True)
-        logger.log_tabular('DeltaLossPi', average_only=True)
-        logger.log_tabular('DeltaLossV', average_only=True)
-        logger.log_tabular('Entropy', average_only=True)
-        logger.log_tabular('KL', average_only=True)
-        logger.log_tabular('Time', time.time()-start_time)
-        logger.dump_tabular()
+        if verbose:
+            # Log info about epoch
+            logger.log_tabular('Epoch', epoch)
+            logger.log_tabular('EpRet', with_min_and_max=True)
+            logger.log_tabular('EpLen', average_only=True)
+            logger.log_tabular('VVals', with_min_and_max=True)
+            logger.log_tabular('TotalEnvInteracts', (epoch+1)*steps_per_epoch)
+            logger.log_tabular('LossPi', average_only=True)
+            logger.log_tabular('LossV', average_only=True)
+            logger.log_tabular('DeltaLossPi', average_only=True)
+            logger.log_tabular('DeltaLossV', average_only=True)
+            logger.log_tabular('Entropy', average_only=True)
+            logger.log_tabular('KL', average_only=True)
+            logger.log_tabular('Time', time.time()-start_time)
+            logger.dump_tabular()
 
 if __name__ == '__main__':
     import argparse
@@ -337,6 +338,7 @@ if __name__ == '__main__':
     parser.add_argument('--steps', type=int, default=4000)
     parser.add_argument('--epochs', type=int, default=50)
     parser.add_argument('--exp_name', type=str, default='vpg')
+    parser.add_argument('--verbose', default=False, const=True, nargs='?', type=bool)
     args = parser.parse_args()
 
     mpi_fork(args.cpu)  # run parallel code with mpi
@@ -347,4 +349,4 @@ if __name__ == '__main__':
     vpg(lambda : gym.make(args.env), actor_critic=core.MLPActorCritic,
         ac_kwargs=dict(hidden_sizes=[args.hid]*args.l), gamma=args.gamma, 
         seed=args.seed, steps_per_epoch=args.steps, epochs=args.epochs,
-        logger_kwargs=logger_kwargs)
+        logger_kwargs=logger_kwargs, verbose=args.verbose)
